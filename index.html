@@ -262,14 +262,28 @@
     text-align: center;
     color: var(--ink-dim);
     font-size: 0.75em;
+    cursor: pointer;
+    z-index: 5;
   }
 
-  /* input real, invisible, captura teclado */
+  /* celular vertical: monitor más alto para que entre el texto */
+  @media (orientation: portrait) {
+    .monitor { aspect-ratio: 3 / 4; width: 94vw; padding: 6%; }
+    .content { font-size: clamp(16px, 4.6vw, 30px); }
+    .txt-body { inset: 8% 7% 13% 7%; }
+  }
+
+  /* input real, invisible, captura teclado.
+     Dentro de la pantalla (no fuera de ella) y a 16px para que iOS no haga zoom ni scroll. */
+  #pw-form { margin: 0; }
   #hidden {
-    position: absolute;
+    position: fixed;
+    top: 0; left: 0;
     opacity: 0;
     width: 1px; height: 1px;
-    left: -9999px;
+    font-size: 16px;
+    border: 0; padding: 0;
+    pointer-events: none;
   }
 
   /* efecto encendido */
@@ -314,7 +328,7 @@
         <!-- PANTALLA DE TEXTO -->
         <div class="view" id="view-txt">
           <div class="txt-body" id="txt-body"></div>
-          <div class="txt-hint">press [esc] to go back</div>
+          <div class="txt-hint" id="txt-hint">press [esc] or tap here to go back</div>
         </div>
 
       </div>
@@ -322,7 +336,9 @@
   </div>
 </div>
 
-<input type="text" id="hidden" autocomplete="off" autocapitalize="off" spellcheck="false">
+<form id="pw-form" autocomplete="off">
+  <input type="text" id="hidden" maxlength="24" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go">
+</form>
 
 <script>
   // ============================================================
@@ -519,13 +535,19 @@ Licenciatura en Matemática — Universidad de Buenos Aires`
   let mode = 'pw';   // 'pw' | 'txt'
   let typingTimer = null;
 
-  function focus() { hidden.focus({ preventScroll: true }); }
-  screen.addEventListener('click', focus);
+  // en modo texto no enfocamos, así el teclado del celu no tapa la pantalla
+  function focus() { if (mode === 'pw') hidden.focus({ preventScroll: true }); }
   document.addEventListener('click', focus);
   window.addEventListener('load', focus);
 
   function render() {
     typedEl.textContent = buffer;
+  }
+
+  function clearBuffer() {
+    buffer = '';
+    hidden.value = '';
+    render();
   }
 
   function glitch() {
@@ -536,6 +558,7 @@ Licenciatura en Matemática — Universidad de Buenos Aires`
 
   function showText(entry) {
     mode = 'txt';
+    hidden.blur();
     glitch();
     viewPw.classList.remove('active');
     viewTxt.classList.add('active');
@@ -606,30 +629,35 @@ Licenciatura en Matemática — Universidad de Buenos Aires`
     glitch();
     viewTxt.classList.remove('active');
     viewPw.classList.add('active');
-    buffer = '';
-    render();
+    clearBuffer();
     status.classList.remove('show');
   }
 
   function submit() {
     const key = buffer.trim();
     const entry = ENTRIES[key];
+    clearBuffer();
     if (entry) {
       showText(entry);
     } else {
       status.classList.add('show');
       glitch();
-      buffer = '';
-      render();
       setTimeout(() => status.classList.remove('show'), 1200);
     }
   }
 
+  // tocar "go back" (no hay [esc] en el celu)
+  document.getElementById('txt-hint').addEventListener('click', (e) => {
+    e.stopPropagation();
+    backToPassword();
+    focus();
+  });
+
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       e.preventDefault();
-      if (mode === 'txt') backToPassword();
-      else { buffer = ''; render(); status.classList.remove('show'); }
+      if (mode === 'txt') { backToPassword(); focus(); }
+      else { clearBuffer(); status.classList.remove('show'); }
       return;
     }
     if (mode === 'txt') {
@@ -638,21 +666,22 @@ Licenciatura en Matemática — Universidad de Buenos Aires`
       if (e.key === 'ArrowUp')   txtBody.scrollTop -= 40;
       return;
     }
-    if (e.key === 'Enter') { e.preventDefault(); submit(); return; }
-    if (e.key === 'Backspace') { e.preventDefault(); buffer = buffer.slice(0, -1); render(); return; }
-    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-      e.preventDefault();
-      if (buffer.length < MAX_LEN) { buffer += e.key; render(); }
-      status.classList.remove('show');
-    }
+    // si el input perdió el foco, lo recuperamos para no perder la tecla
+    if (document.activeElement !== hidden) focus();
   });
 
-  // en móvil el teclado escribe en el input oculto; sincronizamos
+  // el input oculto es la única fuente de lo tipeado (teclado físico y del celu)
   hidden.addEventListener('input', () => {
     if (mode !== 'pw') { hidden.value = ''; return; }
     buffer = hidden.value.slice(0, MAX_LEN);
-    hidden.value = '';
     render();
+    status.classList.remove('show');
+  });
+
+  // Enter / "Ir" del teclado del celu envían el form
+  document.getElementById('pw-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (mode === 'pw') submit();
   });
 </script>
 </body>
