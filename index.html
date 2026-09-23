@@ -247,6 +247,24 @@
   .log-time { color: var(--ink-dim); white-space: nowrap; }
   .log-who  { font-weight: bold; white-space: nowrap; text-transform: uppercase; }
   .log-msg  { white-space: pre-wrap; }
+  /* collage de recortes */
+  .clips { display: flex; flex-direction: column; gap: 1.2em; padding: 0.4em 0.5em 1em; }
+  .clip {
+    border: 1px solid var(--ink-dim);
+    padding: 0.6em 0.8em;
+    white-space: pre-wrap;
+    transform: rotate(var(--r, 0deg));
+    animation: clipin 0.25s ease-out;
+  }
+  @keyframes clipin { from { opacity: 0; transform: rotate(var(--r, 0deg)) translateY(8px); } }
+  .clip-src { font-size: 0.7em; color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5em; }
+  .clip-head { font-size: 1.25em; font-weight: bold; text-transform: uppercase; line-height: 1.1; margin-bottom: 0.4em; }
+  .clip.revista { border-width: 0 0 0 4px; }
+  .clip.nota    { border-style: dashed; font-style: italic; }
+  .clip.aviso   { border: 3px double var(--ink); text-align: center; }
+  .clip.bando   { border-width: 2px 0; text-align: center; text-transform: uppercase; }
+  .clip.menu    { border-style: dotted; }
+  .clip.aviso .clip-src, .clip.bando .clip-src { text-align: center; }
   .txt-img {
     display: block;
     margin: 1em auto 0;
@@ -537,6 +555,107 @@ Licenciatura en Matemática — Universidad de Buenos Aires`
         ["23/09 14:22", "JF", "Se cambió la dirección de la página"],
         ["23/09 14:40", "JF", "Arreglo para celulares: el teclado reemplazaba las letras"],
         ["23/09 15:05", "JF", "Se agregó la entrada de *****"],
+        ["23/09 15:40", "JF", "Nuevo formato: recortes"],
+        ["23/09 15:48", "JF", "Se agregó la entrada de ********"],
+      ]
+    },
+    "swansong": {
+      title: "Recortes — sin clasificar",
+      clips: [
+        {
+          kind: "diario",
+          source: "Gazeta Krakowska — traducción al castellano",
+          head: "Suspenden la coronación",
+          text:
+`Cracovia. — En un hecho sin precedentes, S. M. el Rey interrumpió anoche la fiesta de coronación de su sucesor y la dio por cancelada ante más de cuatrocientos invitados. Según testigos, el monarca se levantó de la mesa principal tras probar el último de los bagels presentados y abandonó el salón sin pronunciar palabra.
+
+Los siete príncipes permanecieron sentados hasta la madrugada. La Casa Real no ha emitido comunicado. [...]`
+        },
+        {
+          kind: "revista",
+          source: "Revista Salón — Nº 212 — «La infancia del Rey»",
+          text:
+`—¿Es cierto que de chico solo comía bagels?
+—No solo eso, pero casi. Mi madre decía que aprendí a decir «bagel» antes que «mamá». Probé los de Varsovia, los de Nueva York, los de Montreal. Todos buenos. Pero el mejor bagel que comí en mi vida fue uno argentino. Tenía nueve años. Nunca me lo voy a olvidar.
+—¿Y qué tenía de especial?
+—Si se lo dijera, ya no sería especial. [...]`
+        },
+        {
+          kind: "menu",
+          source: "Programa impreso de la fiesta — encontrado doblado dentro de un libro",
+          text:
+`FIESTA DE CORONACIÓN
+Orden de la velada
+
+I.   Llegada de los invitados
+II.  Presentación de los siete príncipes:
+     Kazimierz · Władysław · Zygmunt · Stanisław · Jan · Michał · Aleksander
+III. Por pedido expreso de S. M.: el bagel de su infancia
+IV.  Elección y coronación del nuevo Rey
+V.   Baile
+
+(los puntos IV y V, tachados a mano)`
+        },
+        {
+          kind: "nota",
+          source: "Hoja de cuaderno arrancada — letra de cocinero",
+          text:
+`Receta 1: rechazada. «Le falta algo.»
+Receta 2: rechazada. «Le falta algo.»
+Receta 3: rechazada. Ni la terminó.
+Receta 4: rechazada. «Se parece. Pero le falta.»
+Receta 5: rechazada.
+Receta 6: rechazada. Tiró el plato.
+Receta 7: rechazada. «¿Nadie en este reino sabe hacer un bagel?»
+
+Seguimos cada receta al pie de la letra. Harina, agua, sal, levadura, malta. Hervido y horno. Estaba todo.
+¿QUÉ LE FALTA?`
+        },
+        {
+          kind: "diario",
+          source: "El Diario del Plata — sección Curiosidades",
+          head: "Un rey pide un bagel argentino y se queda sin sucesor",
+          text:
+`El monarca polaco, conocido por su pasión por los bagels, habría suspendido la coronación de su heredero porque ninguno de los bagels servidos igualaba al que probó de niño en nuestro país. Panaderos porteños consultados por este diario no supieron decir de qué bagel se trataba. [...]`
+        },
+        {
+          kind: "bando",
+          source: "Bando Real — fijado en las puertas del Wawel",
+          text:
+`Por orden de S. M. el Rey
+
+La corona no será entregada por nacimiento, ni por mérito, ni por votación.
+
+Será entregada únicamente a quien presente la receta EXACTA del bagel argentino que S. M. comió en su infancia.
+
+Ni un ingrediente de más.
+Ni uno de menos.`
+        },
+        {
+          kind: "aviso",
+          source: "Clasificados — rubro Varios",
+          text:
+`SE BUSCA RECETA
+Bagel argentino. Original.
+Recompensa: una corona.
+Abstenerse curiosos.`
+        },
+        {
+          kind: "diario",
+          source: "Recorte sin fecha — muy gastado",
+          head: "Fin de la monarquía",
+          text:
+`[...] nadie la encontró. El Rey murió esperando. Sin un sucesor coronado, el Parlamento declaró extinguida la monarquía [...]
+
+Los siete príncipes se dispersaron. Se dice que alguno de ellos todavía la busca. [...]`
+        },
+        {
+          kind: "",
+          source: "Crucigrama — esquina de una página",
+          text:
+`HORIZONTALES
+7. Pan con agujero que terminó con un reino (5)`
+        },
       ]
     },
     // Formatos:
@@ -595,6 +714,34 @@ Licenciatura en Matemática — Universidad de Buenos Aires`
       txtBody.appendChild(h);
     }
     clearInterval(typingTimer);
+
+    if (entry.clips) {
+      // formato collage: un recorte por vez, cada uno levemente torcido
+      const wrap = document.createElement('div');
+      wrap.className = 'clips';
+      txtBody.appendChild(wrap);
+      const tilts = [-1.2, 0.9, -0.5, 1.3, -0.9, 0.4, -1.4, 1];
+      let i = 0;
+      const next = () => {
+        if (i >= entry.clips.length) { clearInterval(typingTimer); return; }
+        const c = entry.clips[i];
+        const el = document.createElement('div');
+        el.className = 'clip ' + (c.kind || '');
+        el.style.setProperty('--r', tilts[i % tilts.length] + 'deg');
+        for (const [cls, val] of [['clip-src', c.source], ['clip-head', c.head], ['', c.text]]) {
+          if (!val) continue;
+          const d = document.createElement('div');
+          if (cls) d.className = cls;
+          d.textContent = val;
+          el.appendChild(d);
+        }
+        wrap.appendChild(el);
+        i++;
+      };
+      next();
+      typingTimer = setInterval(next, 450);
+      return;
+    }
 
     if (entry.log) {
       // formato log: una línea por vez
