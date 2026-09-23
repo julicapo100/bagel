@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Terminal</title>
+<link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #101315;
+    --bezel: #1c1f21;
+    --bezel-light: #2b2f32;
+    --bezel-dark: #0a0b0c;
+    --screen: #0c1f22;
+    --screen-top: #143036;
+    --ink: #8fe6d8;
+    --ink-dim: #5aa89c;
+    --ink-glow: rgba(120, 240, 220, 0.55);
+    --font: 'VT323', 'Courier New', monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: var(--bg);
+    overflow: hidden;
+    font-family: var(--font);
+    color: var(--ink);
+    -webkit-font-smoothing: none;
+  }
+
+  /* fondo: pared / mesa oscura tipo comic */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 50% 40%, #22272a 0%, #111416 55%, #070809 100%);
+    z-index: 0;
+  }
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.025) 0 1px, transparent 1px 3px),
+      repeating-linear-gradient(90deg, rgba(0,0,0,0.12) 0 2px, transparent 2px 7px);
+    mix-blend-mode: overlay;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .stage {
+    position: relative;
+    z-index: 1;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4vmin;
+  }
+
+  /* MONITOR */
+  .monitor {
+    position: relative;
+    width: min(92vw, 150vh);
+    aspect-ratio: 4 / 3;
+    max-height: 92vh;
+    background: linear-gradient(160deg, var(--bezel-light) 0%, var(--bezel) 40%, var(--bezel-dark) 100%);
+    border-radius: 14px;
+    padding: 5.5%;
+    box-shadow:
+      0 0 0 3px #050606,
+      0 30px 80px rgba(0,0,0,0.85),
+      inset 0 2px 0 rgba(255,255,255,0.06),
+      inset 0 -3px 0 rgba(0,0,0,0.7);
+  }
+  /* desgaste/grunge del bisel */
+  .monitor::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 14px;
+    background:
+      radial-gradient(circle at 8% 10%, rgba(255,255,255,0.07), transparent 25%),
+      radial-gradient(circle at 92% 88%, rgba(0,0,0,0.5), transparent 30%),
+      repeating-linear-gradient(35deg, rgba(0,0,0,0.08) 0 3px, transparent 3px 11px);
+    pointer-events: none;
+  }
+  /* marco interior negro */
+  .monitor::after {
+    content: "";
+    position: absolute;
+    inset: 4%;
+    border-radius: 8px;
+    border: 2px solid #050606;
+    box-shadow:
+      inset 0 0 0 6px #0e1012,
+      inset 0 0 0 8px #1f2326,
+      0 0 0 2px rgba(255,255,255,0.03);
+    pointer-events: none;
+  }
+
+  .screen {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background:
+      radial-gradient(ellipse at 50% 0%, var(--screen-top) 0%, var(--screen) 55%, #061214 100%);
+    border-radius: 6px / 8px;
+    overflow: hidden;
+    cursor: text;
+    box-shadow:
+      inset 0 0 40px rgba(0,0,0,0.9),
+      inset 0 0 6px rgba(140,230,215,0.15);
+    z-index: 1;
+  }
+  /* scanlines */
+  .screen::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      rgba(0,0,0,0.28) 0px,
+      rgba(0,0,0,0.28) 1px,
+      transparent 1px,
+      transparent 4px
+    );
+    pointer-events: none;
+    z-index: 3;
+  }
+  /* viñeta + brillo */
+  .screen::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.6) 100%),
+      linear-gradient(180deg, rgba(255,255,255,0.05) 0%, transparent 18%);
+    pointer-events: none;
+    z-index: 4;
+  }
+
+  /* leve parpadeo del tubo */
+  @keyframes flicker {
+    0%, 100% { opacity: 1; }
+    92% { opacity: 1; }
+    93% { opacity: 0.92; }
+    94% { opacity: 1; }
+    97% { opacity: 0.96; }
+  }
+  .content {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    animation: flicker 6s infinite;
+    text-shadow: 0 0 6px var(--ink-glow), 0 0 2px var(--ink);
+    letter-spacing: 0.06em;
+    font-size: clamp(16px, 2.6vw, 30px);
+    line-height: 1.35;
+    text-transform: uppercase;
+  }
+
+  /* ---------- VISTA PASSWORD ---------- */
+  .view { position: absolute; inset: 0; display: none; }
+  .view.active { display: block; }
+
+  .pw-title {
+    position: absolute;
+    top: 21%;
+    left: 0; right: 0;
+    text-align: center;
+    font-weight: bold;
+  }
+
+  .pw-input {
+    position: absolute;
+    top: 38%;
+    left: 0; right: 0;
+    text-align: center;
+    min-height: 1.4em;
+  }
+  .pw-input .arrow { display: block; font-size: 0.55em; line-height: 1; color: var(--ink-dim); }
+  .pw-input .typed {
+    text-transform: none;
+    display: inline-block;
+    min-width: 1ch;
+    margin: 0.1em 0;
+  }
+  .caret {
+    display: inline-block;
+    width: 0.6ch;
+    height: 0.9em;
+    background: var(--ink);
+    vertical-align: -0.1em;
+    margin-left: 2px;
+    animation: blink 1s steps(1) infinite;
+    box-shadow: 0 0 6px var(--ink-glow);
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .pw-status {
+    position: absolute;
+    top: 56%;
+    left: 0; right: 0;
+    text-align: center;
+    color: #e08a7a;
+    text-shadow: 0 0 6px rgba(240,120,100,0.6);
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .pw-status.show { opacity: 1; }
+
+  .pw-hint {
+    position: absolute;
+    top: 74%;
+    left: 0; right: 0;
+    text-align: center;
+    color: var(--ink-dim);
+    font-size: 0.75em;
+  }
+
+  /* ---------- VISTA TEXTO ---------- */
+  .txt-body {
+    position: absolute;
+    inset: 9% 9% 14% 9%;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    font-size: 0.9em;
+    text-transform: none;
+    scrollbar-width: thin;
+    scrollbar-color: var(--ink-dim) transparent;
+  }
+  .txt-body::-webkit-scrollbar { width: 6px; }
+  .txt-body::-webkit-scrollbar-thumb { background: var(--ink-dim); }
+  .txt-body h1 {
+    font-size: 1.15em;
+    margin: 0 0 0.6em;
+    text-transform: uppercase;
+    font-weight: bold;
+  }
+  .log { display: grid; grid-template-columns: auto auto 1fr; column-gap: 1.2ch; row-gap: 0.35em; }
+  .log-row { display: contents; }
+  .log-time { color: var(--ink-dim); white-space: nowrap; }
+  .log-who  { font-weight: bold; white-space: nowrap; text-transform: uppercase; }
+  .log-msg  { white-space: pre-wrap; }
+  .txt-img {
+    display: block;
+    margin: 1em auto 0;
+    width: min(60%, 320px);
+    image-rendering: pixelated;
+    opacity: 0.9;
+    filter: drop-shadow(0 0 8px var(--ink-glow));
+  }
+  .txt-hint {
+    position: absolute;
+    bottom: 5%;
+    left: 0; right: 0;
+    text-align: center;
+    color: var(--ink-dim);
+    font-size: 0.75em;
+  }
+
+  /* input real, invisible, captura teclado */
+  #hidden {
+    position: absolute;
+    opacity: 0;
+    width: 1px; height: 1px;
+    left: -9999px;
+  }
+
+  /* efecto encendido */
+  @keyframes turnon {
+    0% { transform: scaleY(0.005) scaleX(0.6); filter: brightness(6); }
+    40% { transform: scaleY(0.005) scaleX(1); filter: brightness(6); }
+    70% { transform: scale(1); filter: brightness(2); }
+    100% { transform: scale(1); filter: brightness(1); }
+  }
+  .screen { animation: turnon 0.9s ease-out; }
+
+  /* glitch al cambiar de vista */
+  @keyframes glitch {
+    0% { transform: translateX(0); filter: brightness(1); }
+    20% { transform: translateX(-6px) skewX(4deg); filter: brightness(1.8); }
+    40% { transform: translateX(5px) skewX(-3deg); }
+    60% { transform: translateX(-2px); }
+    100% { transform: translateX(0); filter: brightness(1); }
+  }
+  .content.glitch { animation: glitch 0.25s linear; }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="monitor">
+    <div class="screen" id="screen">
+      <div class="content" id="content">
+
+        <!-- PANTALLA DE CONTRASEÑA -->
+        <div class="view active" id="view-pw">
+          <div class="pw-title">Terminal Password:</div>
+          <div class="pw-input">
+            <span class="arrow">&#9650;</span>
+            <span class="typed" id="typed"></span><span class="caret"></span>
+            <span class="arrow">&#9660;</span>
+          </div>
+          <div class="pw-status" id="status">Access denied</div>
+          <div class="pw-hint">press [esc] to go back</div>
+        </div>
+
+        <!-- PANTALLA DE TEXTO -->
+        <div class="view" id="view-txt">
+          <div class="txt-body" id="txt-body"></div>
+          <div class="txt-hint">press [esc] to go back</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<input type="text" id="hidden" autocomplete="off" autocapitalize="off" spellcheck="false">
+
+<script>
+  // ============================================================
+  //  CONTRASEÑAS → TEXTOS
+  //  Clave: contraseña EXACTA (distingue mayúsculas y minúsculas).
+  //  Valor: { title: "...", text: "..." }  (text acepta saltos de línea con \n)
+  // ============================================================
+  const ENTRIES = {
+    "SajnI": {
+      title: "Correspondencia — I. Sajnovsky",
+      text:
+`Estimado Sr. Aleksander Sobieski:
+
+Le escribo para confirmarle que su mensaje ha llegado a mis manos, y con él, la oferta que en él me detalla. He leído sus términos con detenimiento y, tras considerarlos, le comunico que acepto.
+
+Seguiré sus indicaciones tal como las ha dispuesto, punto por punto, a cambio de la ayuda que me promete para conseguir mi pasaporte polaco. Usted sabe mejor que nadie lo que ese documento significa para mí, y por ello quiero dejar constancia de mi más sincera gratitud. No es poca cosa lo que me ofrece, y no lo tomo a la ligera.
+
+Debo confesarle, sin embargo, que sus instrucciones me han dejado intrigado. Son extrañas, y de una especificidad que no alcanzo a comprender: los horarios, los lugares, el orden exacto de cada paso. No entiendo qué propósito puede tener semejante precisión. Pero no se inquiete: no tengo intención de hacer demasiadas preguntas. Entiendo que hay asuntos que no me corresponde conocer, y me limitaré a cumplir con lo acordado.
+
+Quedo a la espera de sus próximas comunicaciones.
+
+Atentamente,
+
+Ivan Sajnovsky`
+    },
+    "PaskI": {
+      title: "Registro de chat — 14/09 — Paskowski, I. / Paskowski, P.",
+      log: [
+        ["21:03", "Ivan", "Te enteraste lo que paso?"],
+        ["21:03", "Popi", "Si, me entere de la noticia"],
+        ["21:04", "Popi", "Felicitaciones eh. Mama me lo conto antes que vos, como siempre"],
+        ["21:04", "Popi", "El examen de meteorologia. Dijo que te fue increible"],
+        ["21:05", "Ivan", "Que? No, no te hablo de eso"],
+        ["21:05", "Ivan", "Digo, si, me fue bien. Pero no te escribia por eso"],
+        ["21:05", "Popi", "Y entonces?"],
+        ["21:06", "Ivan", "El Reino Unido. Parece que se disuelve"],
+        ["21:06", "Popi", "Como que se disuelve"],
+        ["21:07", "Ivan", "Se disuelve. Se termina. Escocia e Irlanda del Norte ya no responden a Londres, y no es un rumor, hoy lo confirmaron en dos parlamentos distintos"],
+        ["21:07", "Popi", "No puede ser"],
+        ["21:08", "Ivan", "Fijate cualquier diario. Esta en todos lados"],
+        ["21:10", "Popi", "Ok, lo estoy leyendo. Es una locura"],
+        ["21:10", "Popi", "Trescientos años y se va a la mierda en una semana"],
+        ["21:11", "Ivan", "Eso es lo que me preocupa. No es solo ellos. Si cae el Reino Unido cambia el balance de todo. Europa, la OTAN, el Atlantico. Todo lo que estaba armado alrededor de Londres queda flotando"],
+        ["21:11", "Popi", "Y quien agarra ese lugar?"],
+        ["21:12", "Ivan", "No se. Nadie sabe. Por eso es tan grave. Cuando hay un vacio asi, alguien lo llena, y no siempre es quien uno espera"],
+        ["21:13", "Popi", "Viste lo de Polonia?"],
+        ["21:13", "Ivan", "Lo de las declaraciones?"],
+        ["21:14", "Popi", "Si. Estuvieron rarisimos. En un mes sacaron mas comunicados sobre politica exterior que en los ultimos diez años. Y todos hablan de 'nuevas alianzas historicas' y 'un futuro compartido entre naciones hermanas'"],
+        ["21:14", "Ivan", "Si, lo vi. Muy activos"],
+        ["21:15", "Ivan", "Demasiado activos para un pais que normalmente se queda callado y mira"],
+        ["21:15", "Popi", "Vos crees que tienen algo que ver?"],
+        ["21:16", "Ivan", "No se si tienen que ver. Pero da la sensacion de que se viene algo grande. Como si estuvieran preparando el terreno para algo que todavia no anunciaron"],
+        ["21:16", "Popi", "Me da un poco de miedo, sinceramente"],
+        ["21:17", "Ivan", "A mi tambien. Igual, no podemos hacer mucho mas que mirar"],
+        ["21:17", "Popi", "Bueno. Avisame si ves algo nuevo"],
+        ["21:18", "Ivan", "Dale. Y de paso, gracias por lo del examen"],
+        ["21:18", "Popi", "Jaja, de nada. Cuidate"],
+      ]
+    },
+    "JJ": {
+      text: "LIBEREN AL BAGEL",
+      image: "donovan.png"
+    },
+    "FreuS": {
+      title: "Nota — S. Freund",
+      text:
+`Familia:
+
+Cuando lean esto ya voy a estar en camino. Perdón por no avisar antes; sabía que si lo hablaba me iban a convencer de no ir, y necesitaba ir.
+
+Ustedes saben que lo mío siempre fue la biología. Bichos, plantas, células. Nunca me interesó demasiado la historia, y menos la de la familia. Hasta la semana pasada.
+
+Buscando las fotos viejas en las cajas del altillo encontré esta:
+
+[[img:freund.png]]
+
+Atrás, escrito a lápiz y casi borrado, dice un nombre, "Freund", una fecha de 1911 y una sola palabra más: Kraków. Y abajo, con otra letra, algo que no termino de leer del todo pero que menciona a la corte. A la CORTE. Estuve tres días cruzando registros y archivos digitalizados y todo apunta a lo mismo: un antepasado nuestro estuvo involucrado, de alguna manera que todavía no entiendo, con la realeza polaca. No sé si como médico, consejero, invitado o qué. Pero estuvo ahí.
+
+No puedo dejarlo pasar. Me voy a Polonia a buscarlo. A buscar lo que quede de él: papeles, tumbas, alguien que recuerde el apellido. No sé cuánto voy a tardar.
+
+Les escribo apenas tenga algo.
+
+Y por favor, cuiden a Yuno. Sáquenla dos veces por día, la de la tarde larga, y no le den de la comida de la lata roja que le cae mal. Que duerma en mi cama si quiere. Va a extrañar, pero se le pasa rápido.
+
+Los quiero.
+
+Severino`
+    },
+    "FerrD": {
+      title: "Diario — D. Ferraro",
+      text:
+`Domingo 7 de septiembre de 2026
+
+Querido Diario:
+
+Hoy fue un gran día. Después de semanas de intentos fallidos, creo que finalmente encontré la receta de las milanesas polacas. El secreto estaba en el pan rallado: no hay que usar pan común, hay que usar pan de centeno seco, molido bien fino, mezclado con un poco de mostaza en polvo. Y la carne va marinada la noche anterior en leche con ajo y eneldo. Nada de huevo solo: huevo con una cucharada de crema. Quedan doradas, crocantes por fuera y tiernísimas adentro. Las probé y casi lloro.
+
+Igual, seamos honestos, hay una jerarquía en esta vida y no la voy a negar ni en mi propio diario. La pizza fugazzeta de La Mezzetta es superior. A todo. A mis milanesas, a cualquier milanesa. Esa cebolla, ese queso derritiéndose hasta el borde. No hay discusión.
+
+Pero, y esto es importante, la fugazzeta de La Mezzetta es mejor que los bagels de Chacarita cocinados por Valen. Y con eso ya estoy diciendo muchísimo, porque los bagels de Valen son de otro planeta. Digo esto para que quede registro: fugazzeta primero, bagels de Valen segundo, mis milanesas polacas en un digno tercer puesto. Por ahora. Cuando perfeccione el rebozado, veremos.
+
+Mañana voy a probar la versión con paprika ahumada.
+
+Me despido, diario, me voy a ver el partido de Boca.
+
+Dante
+
+
+---
+
+23:15
+
+Volví. No debería escribir esto pero necesito descargarme con alguien y vos sos lo único que no me va a contestar.
+
+QUÉ MIERDA FUE ESO. Perdimos. Otra vez. Contra un equipo que no le gana ni a mi abuela. Noventa minutos de tirar centros al medio como si del otro lado hubiera alguien. Nadie. NADIE. El 9 estaba más perdido que Severino en Polonia.
+
+Y el técnico. El técnico hace el cambio a los 88 minutos, hermano. A los 88. ¿Para qué? ¿Para que el pibe entre a saludar? Un asco. Una vergüenza. Se me cortó la digestión de las milanesas, y eso que estaban perfectas, y ahora tengo ganas de tirar toda la receta a la basura por culpa de estos inútiles.
+
+Bueno. Ya está. Mañana paprika ahumada. Y ojalá renuncie alguien.
+
+Ahora sí, chau.`
+    },
+    "NigrP": {
+      title: "Reseña — P. Nigri",
+      text:
+`[ TEXTO EXTRAÍDO DE TEATROCRÍTICA.COM.AR — SECCIÓN "RESEÑAS DE ESPECTADORES" ]
+Usuario: pnigri_ | Obra: "Corona de Centeno" | Sala: Teatro del Abasto | Puntaje: 4/5
+
+Voy a ser sincero: hasta hace un mes no me importaba nada de Polonia. No sabía ni dónde quedaba exactamente. Pero desde que un amigo se fue para allá (de un día para el otro, persiguiendo no sé qué historia familiar) me empecé a interesar, y entre eso y todo lo que está pasando en las noticias con el Reino Unido y las declaraciones raras que viene sacando Polonia, cuando vi el afiche de esta obra no lo dudé.
+
+"Corona de Centeno" es, en apariencia, una obra sobre la historia de Polonia: reyes, particiones, guerras, el país que desaparece del mapa y vuelve a aparecer. Pero en realidad es una obra sobre lo que Polonia quiere ser, y eso es lo que la hace inquietante.
+
+El centro de la obra es Juan III Sobieski, rey de Polonia, y su guerra con el Imperio Otomano. La primera parte lo muestra antes de la corona: un noble de frontera que ya había peleado contra los turcos y los conocía mejor que nadie, que sabía cuándo atacar y cuándo sentarse a negociar. Lo eligen rey justamente por eso. El actor que lo interpreta está muy bien: nunca levanta la voz, y aun así uno siente que está armando algo enorme detrás de escena. Hay un monólogo suyo, la noche antes de partir, sobre "las coronas que se rompen y las que se vuelven a forjar con pedazos de otras" que me quedó dando vueltas toda la noche. Con lo que se está hablando de Escocia y de Irlanda, no sé, me pareció demasiado actual para ser casualidad.
+
+La segunda parte es la guerra en sí. Los otomanos avanzan sobre Viena, el emperador pide ayuda, y Sobieski cruza con su ejército para ir a defender una ciudad que ni siquiera es suya. La obra lo cuenta con pocos recursos pero mucha inteligencia: cañones lejanos, un coro que hace de ejército, mapas proyectados en el fondo. La escena de la carga de la caballería polaca desde las colinas, con los húsares alados bajando en fila, se resuelve con luz y sonido nada más, y aun así se me erizó la piel. Los turcos se retiran, Viena se salva, y Sobieski vuelve a casa como el hombre que frenó al Imperio Otomano. Pero la obra es más fina que eso: en el último cuadro de la guerra, un enviado otomano y Sobieski se sientan a comer pan en una mesa larguísima, y uno entiende que la guerra se ganó tanto en el campo como en esa mesa. Polonia siempre supo negociar cuando le convenía.
+
+Y ahí aparece un panadero viejo, Joya, un polaco de manos enormes que, según la obra, inventó el bagel. Me pareció peculiar que nombraran eso, porque no tiene nada que ver con reyes ni con coronas, y sin embargo la obra le dedica una escena entera: Joya amasando en silencio, y después, cuando Sobieski vuelve de la guerra, Joya se le acerca entre la multitud y le entrega un pan con forma de anillo, sin decir una palabra. El rey lo toma como si fuera una corona. Es de lo mejor de la noche. No entendí del todo qué quiso decir el director con eso, pero me emocionó.
+
+Después están los inmigrantes. Tres hermanos, o amigos, no queda claro, que siglos después se suben a un barco y cruzan el océano huyendo de todo: Mario, David y Abel. Tienen apellidos rarísimos que no llegué a entender, todos terminaban en "sky". Sus escenas en el barco son las más humanas de la obra: tienen miedo, se pelean, cantan. Uno de ellos guarda un papel doblado que nunca muestra y que le dieron antes de partir. Tampoco se explica.
+
+La obra tiene sus defectos: es larga (dos horas y cuarto sin intervalo), y hay un par de escenas con el coro que sobran. Pero me gustó. Me gustó mucho. Salí con la sensación de haber visto algo que todavía no terminó de pasar.
+
+Recomendada. Vayan antes de que la levanten, o antes de que la realidad la alcance.
+
+Pedro Nigri`
+    },
+    "BrasL": {
+      title: "Carta de motivación — L. Braslavski",
+      text:
+`Universidad Jagellónica de Cracovia
+Oficina de Movilidad Internacional
+Facultad de Matemática e Informática
+
+Asunto: Solicitud de intercambio académico — segundo semestre 2027
+
+Estimados miembros del comité:
+
+Mi nombre es Lautaro Braslavski. Curso el cuarto año de la Licenciatura en Matemática en la Universidad de Buenos Aires y me dirijo a ustedes para solicitar una plaza de intercambio en su facultad durante el segundo semestre de 2027. No elijo Polonia como destino genérico: hay una razón puntual, con nombre y apellido, y quiero explicarla con honestidad.
+
+Hace unos meses, revisando actas viejas de un congreso de análisis realizado en Lwów en 1934, encontré una comunicación breve, apenas dos páginas, firmada por un tal K. Sobieski, docente de su universidad. El título era casi modesto: "Sobre la difusión del calor en superficies cerradas de género uno". Nadie más en las actas lo cita. No aparece en ninguna historia de la escuela matemática polaca que haya podido consultar. Y sin embargo, lo que hay en esas dos páginas es, para mí, lo más interesante que leí en toda la carrera.
+
+Sobieski estudiaba el toro. No como objeto abstracto, sino como un lugar donde pasan cosas físicas. Su pregunta era simple de enunciar y difícil de responder: si uno calienta un punto de un toro, ¿cómo se reparte ese calor por toda la superficie, y cuánto tarda en volverse uniforme? La ecuación del calor sobre una variedad compacta es un problema clásico, pero él insistía en que el toro tiene propiedades que lo hacen distinto de la esfera o del plano: la existencia de dos curvas cerradas independientes que no se pueden contraer, el hecho de que su curvatura cambia de signo (positiva en el borde exterior, negativa en el interior, cerca del agujero), y la manera en que esa geometría determina el espectro del laplaciano y, con él, los tiempos de enfriamiento. Sobieski sostenía que en el toro el calor "recuerda" la forma: que la parte interna, la que mira al agujero, se comporta de manera cualitativamente distinta a la externa, y que esa diferencia no es un detalle numérico sino una consecuencia directa de la topología.
+
+Esto es exactamente el cruce que a mí me interesa: topología y ecuaciones diferenciales tratadas como una sola cosa. Cómo el número de agujeros de una superficie, un invariante puramente combinatorio, termina apareciendo en la solución de una ecuación en derivadas parciales. Cómo la geometría del toro condiciona no solo el calor sino también el flujo de fluidos sobre su superficie, la propagación de ondas, la distribución de tensiones cuando el material se expande. Sobieski apenas alcanzó a esbozar esto, y después su nombre desaparece. Quiero saber qué más escribió, si dejó cuadernos, si tuvo alumnos, y sobre todo quiero terminar el trabajo que él empezó con las herramientas que hoy tenemos.
+
+Durante mi estadía me propongo cursar los seminarios de geometría diferencial y de ecuaciones en derivadas parciales de su facultad, consultar el archivo histórico de la universidad y de la Biblioteca Jagellónica en busca del resto de la obra de Sobieski, y trabajar bajo la orientación de algún docente del Departamento de Análisis que esté dispuesto a acompañar el proyecto. El resultado sería una monografía sobre su figura y sus aportes, que presentaría en mi universidad de origen y que aspiro a publicar.
+
+Tengo un promedio de 10/10. He cursado Topología, Análisis Funcional, Ecuaciones Diferenciales y Geometría Diferencial con buenas calificaciones, y he sido ayudante de Análisis II durante dos cuatrimestres. Mi nivel de inglés es C1. Comencé a estudiar polaco hace cuatro meses, con el único objetivo de poder leer a Sobieski en su idioma.
+
+Agradezco de antemano el tiempo dedicado a esta solicitud. Adjunto mi expediente académico, currículum, dos cartas de recomendación y una copia de las dos páginas de Sobieski, por si a alguien del comité le despiertan la misma curiosidad que a mí.
+
+Atentamente,
+
+Lautaro Braslavski
+Licenciatura en Matemática — Universidad de Buenos Aires`
+    },
+    // Formatos:
+    //   texto:  { title: "...", text: "..." }   ([[img:archivo.png]] dentro del texto inserta una imagen)
+    //   log:    { title: "...", log: [ ["hora", "persona", "texto"], ... ] }
+  };
+
+  const MAX_LEN = 24;
+
+  const hidden  = document.getElementById('hidden');
+  const typedEl = document.getElementById('typed');
+  const status  = document.getElementById('status');
+  const content = document.getElementById('content');
+  const viewPw  = document.getElementById('view-pw');
+  const viewTxt = document.getElementById('view-txt');
+  const txtBody = document.getElementById('txt-body');
+  const screen  = document.getElementById('screen');
+
+  let buffer = '';
+  let mode = 'pw';   // 'pw' | 'txt'
+  let typingTimer = null;
+
+  function focus() { hidden.focus({ preventScroll: true }); }
+  screen.addEventListener('click', focus);
+  document.addEventListener('click', focus);
+  window.addEventListener('load', focus);
+
+  function render() {
+    typedEl.textContent = buffer;
+  }
+
+  function glitch() {
+    content.classList.remove('glitch');
+    void content.offsetWidth;
+    content.classList.add('glitch');
+  }
+
+  function showText(entry) {
+    mode = 'txt';
+    glitch();
+    viewPw.classList.remove('active');
+    viewTxt.classList.add('active');
+    txtBody.innerHTML = '';
+    txtBody.scrollTop = 0;
+
+    if (entry.title) {
+      const h = document.createElement('h1');
+      h.textContent = entry.title;
+      txtBody.appendChild(h);
+    }
+    clearInterval(typingTimer);
+
+    if (entry.log) {
+      // formato log: una línea por vez
+      const table = document.createElement('div');
+      table.className = 'log';
+      txtBody.appendChild(table);
+      let i = 0;
+      const next = () => {
+        if (i >= entry.log.length) { clearInterval(typingTimer); return; }
+        const [time, who, msg] = entry.log[i++];
+        const row = document.createElement('div');
+        row.className = 'log-row';
+        row.innerHTML = `<span class="log-time"></span><span class="log-who"></span><span class="log-msg"></span>`;
+        row.children[0].textContent = time;
+        row.children[1].textContent = who + ':';
+        row.children[2].textContent = msg;
+        table.appendChild(row);
+      };
+      next();
+      typingTimer = setInterval(next, 100);
+      return;
+    }
+
+    // texto con máquina de escribir. Marcador [[img:archivo.png]] inserta una imagen en ese punto.
+    const parts = [];
+    (entry.text || '').split(/(\[\[img:[^\]]+\]\])/).forEach(seg => {
+      const m = seg.match(/^\[\[img:([^\]]+)\]\]$/);
+      if (m) parts.push({ image: m[1] });
+      else if (seg) parts.push(seg);
+    });
+    if (entry.image) parts.push({ image: entry.image });
+
+    let pi = 0, ci = 0, p = null;
+    const step = () => {
+      if (pi >= parts.length) { clearInterval(typingTimer); return; }
+      const part = parts[pi];
+      if (typeof part !== 'string') {
+        const img = document.createElement('img');
+        img.className = 'txt-img';
+        img.src = part.image;
+        txtBody.appendChild(img);
+        pi++; ci = 0; p = null;
+        return;
+      }
+      if (!p) { p = document.createElement('div'); txtBody.appendChild(p); }
+      ci = Math.min(ci + 2, part.length);
+      p.textContent = part.slice(0, ci);
+      if (ci >= part.length) { pi++; ci = 0; p = null; }
+    };
+    typingTimer = setInterval(step, 6);
+  }
+
+  function backToPassword() {
+    mode = 'pw';
+    clearInterval(typingTimer);
+    glitch();
+    viewTxt.classList.remove('active');
+    viewPw.classList.add('active');
+    buffer = '';
+    render();
+    status.classList.remove('show');
+  }
+
+  function submit() {
+    const key = buffer.trim();
+    const entry = ENTRIES[key];
+    if (entry) {
+      showText(entry);
+    } else {
+      status.classList.add('show');
+      glitch();
+      buffer = '';
+      render();
+      setTimeout(() => status.classList.remove('show'), 1200);
+    }
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      if (mode === 'txt') backToPassword();
+      else { buffer = ''; render(); status.classList.remove('show'); }
+      return;
+    }
+    if (mode === 'txt') {
+      // permitir scroll con flechas en el texto
+      if (e.key === 'ArrowDown') txtBody.scrollTop += 40;
+      if (e.key === 'ArrowUp')   txtBody.scrollTop -= 40;
+      return;
+    }
+    if (e.key === 'Enter') { e.preventDefault(); submit(); return; }
+    if (e.key === 'Backspace') { e.preventDefault(); buffer = buffer.slice(0, -1); render(); return; }
+    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      e.preventDefault();
+      if (buffer.length < MAX_LEN) { buffer += e.key; render(); }
+      status.classList.remove('show');
+    }
+  });
+
+  // en móvil el teclado escribe en el input oculto; sincronizamos
+  hidden.addEventListener('input', () => {
+    if (mode !== 'pw') { hidden.value = ''; return; }
+    buffer = hidden.value.slice(0, MAX_LEN);
+    hidden.value = '';
+    render();
+  });
+</script>
+</body>
+</html>
