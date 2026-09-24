@@ -751,6 +751,7 @@ Los siete príncipes se dispersaron. Se dice que alguno de ellos todavía la bus
   const histList   = document.getElementById('hist-list');
   const histBody   = document.getElementById('hist-body');
   const pwHint     = document.getElementById('pw-hint');
+  const pwTitle    = document.querySelector('.pw-title');
 
   let buffer = '';
   let mode = 'pw';   // 'pw' | 'banner' | 'menu' | 'hist' | 'txt'
@@ -804,6 +805,7 @@ Los siete príncipes se dispersaron. Se dice que alguno de ellos todavía la bus
   function updatePwHint() {
     pwHint.textContent = unlocked ? 'press [esc] or tap here to go back' : 'press [esc] to go back';
     pwHint.classList.toggle('tap', unlocked);
+    pwTitle.textContent = unlocked ? 'Ingresa el nombre de la entrada:' : 'Terminal Password:';
   }
 
   function goSearch() {
