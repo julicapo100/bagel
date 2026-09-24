@@ -268,6 +268,10 @@
   .hist-list > div { display: flex; }
   .hist-num { color: var(--ink-dim); margin-right: 1ch; flex: none; }
   .opt.sel .hist-num { color: var(--screen); }
+  .opt.secret, .opt.secret .hist-num { color: #f0a868; text-shadow: 0 0 6px rgba(240,150,80,0.6), 0 0 2px #f0a868; }
+  .opt.secret { margin-top: 0.6em; }
+  .opt.secret.sel { background: #f0a868; }
+  .opt.secret.sel, .opt.secret.sel .hist-num { color: var(--screen); text-shadow: none; }
   .hist-locked { color: var(--ink-dim); padding: 0 0.6ch; opacity: 0.6; }
 
   /* ---------- VISTA TEXTO ---------- */
@@ -496,6 +500,7 @@ Ivan Sajnovsky`
       ]
     },
     "JJ": {
+      secret: true,
       text: "LIBEREN AL BAGEL",
       image: "donovan.png"
     },
@@ -744,15 +749,19 @@ Los siete príncipes se dispersaron. Se dice que alguno de ellos todavía la bus
 
   // Orden (más o menos cronológico) en que aparecen en el historial: "registro número tanto".
   // Una entrada que no esté en esta lista va al final.
-  const ORDER = ["archive", "SajnI", "FreuS", "FerrD", "BrasL", "PaszI", "NigrP", "JJ", "FeldJ"];
-  const ORDERED = [...ORDER.filter(k => k in ENTRIES), ...Object.keys(ENTRIES).filter(k => !ORDER.includes(k))];
+  // Las entradas con secret: true no cuentan ni figuran como bloqueadas; solo aparecen (en otro color) si las encontrás.
+  const ORDER = ["archive", "SajnI", "FreuS", "FerrD", "BrasL", "PaszI", "NigrP", "FeldJ"];
+  const isSecret = k => !!ENTRIES[k].secret;
+  const ORDERED = [...ORDER.filter(k => k in ENTRIES), ...Object.keys(ENTRIES).filter(k => !ORDER.includes(k))]
+    .filter(k => !isSecret(k));
+  const SECRETS = Object.keys(ENTRIES).filter(isSecret);
 
   const MAX_LEN = 24;
   // en el celu no hay [esc]
   const BACK_HINT = matchMedia('(hover: none)').matches ? 'tap here to go back' : 'press [esc] or tap here to go back';
   // contraseña maestra: hasta ponerla, ninguna otra funciona
   const UNLOCK = 'swansong';
-  const TOTAL = Object.keys(ENTRIES).length;
+  const TOTAL = ORDERED.length;
 
   const hidden  = document.getElementById('hidden');
   const typedEl = document.getElementById('typed');
@@ -865,7 +874,7 @@ Los siete príncipes se dispersaron. Se dice que alguno de ellos todavía la bus
     mode = 'hist';
     hidden.blur();
     show(viewHist);
-    document.getElementById('hist-count').textContent = `${seen.length}/${TOTAL}`;
+    document.getElementById('hist-count').textContent = `${seen.filter(k => !isSecret(k)).length}/${TOTAL}`;
     histList.innerHTML = '';
     // todas las entradas en su número fijo; las no vistas figuran como bloqueadas y no se pueden abrir
     ORDERED.forEach((key, i) => {
@@ -876,6 +885,15 @@ Los siete príncipes se dispersaron. Se dice que alguno de ellos todavía la bus
       o.innerHTML = '<span class="hist-num"></span><span></span>';
       o.children[0].textContent = String(i + 1).padStart(2, '0');
       o.children[1].textContent = open ? (ENTRIES[key].title || key) : 'BLOQUEADO';
+      histList.appendChild(o);
+    });
+    // secretas: sin número, al final, en otro color
+    SECRETS.filter(k => seen.includes(k)).forEach(key => {
+      const o = document.createElement('div');
+      o.className = 'opt secret';
+      o.dataset.key = key;
+      o.innerHTML = '<span class="hist-num">??</span><span></span>';
+      o.children[1].textContent = ENTRIES[key].title || key;
       histList.appendChild(o);
     });
     histBody.scrollTop = 0;
