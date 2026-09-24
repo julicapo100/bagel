@@ -266,7 +266,7 @@
   .hist-list { display: flex; flex-direction: column; align-items: flex-start; gap: 0.3em; }
   .hist-num { color: var(--ink-dim); margin-right: 1ch; }
   .opt.sel .hist-num { color: var(--screen); }
-  .hist-empty { color: var(--ink-dim); }
+  .hist-locked { color: var(--ink-dim); padding: 0 0.6ch; opacity: 0.6; }
 
   /* ---------- VISTA TEXTO ---------- */
   .txt-body {
@@ -732,6 +732,11 @@ Los siete príncipes se dispersaron. Se dice que alguno de ellos todavía la bus
     //   log:    { title: "...", log: [ ["hora", "persona", "texto"], ... ] }
   };
 
+  // Orden (más o menos cronológico) en que aparecen en el historial: "registro número tanto".
+  // Una entrada que no esté en esta lista va al final.
+  const ORDER = ["archive", "SajnI", "FreuS", "FerrD", "BrasL", "PaszI", "NigrP", "JJ", "FeldJ"];
+  const ORDERED = [...ORDER.filter(k => k in ENTRIES), ...Object.keys(ENTRIES).filter(k => !ORDER.includes(k))];
+
   const MAX_LEN = 24;
   // contraseña maestra: hasta ponerla, ninguna otra funciona
   const UNLOCK = 'swansong';
@@ -850,19 +855,15 @@ Los siete príncipes se dispersaron. Se dice que alguno de ellos todavía la bus
     show(viewHist);
     document.getElementById('hist-count').textContent = `${seen.length}/${TOTAL}`;
     histList.innerHTML = '';
-    if (!seen.length) {
-      const d = document.createElement('div');
-      d.className = 'hist-empty';
-      d.textContent = '(todavía no viste ninguna entrada)';
-      histList.appendChild(d);
-    }
-    seen.forEach((key, i) => {
+    // todas las entradas en su número fijo; las no vistas figuran como bloqueadas y no se pueden abrir
+    ORDERED.forEach((key, i) => {
+      const open = seen.includes(key);
       const o = document.createElement('div');
-      o.className = 'opt';
-      o.dataset.key = key;
+      o.className = open ? 'opt' : 'hist-locked';
+      if (open) o.dataset.key = key;
       o.innerHTML = '<span class="hist-num"></span><span></span>';
       o.children[0].textContent = String(i + 1).padStart(2, '0');
-      o.children[1].textContent = ENTRIES[key].title || key;
+      o.children[1].textContent = open ? (ENTRIES[key].title || key) : 'BLOQUEADO';
       histList.appendChild(o);
     });
     histBody.scrollTop = 0;
